@@ -141,7 +141,7 @@ with col1:
                 'role, and economic conditions.')
     interest_on_income = st.number_input("Enter interest on income percentage", min_value=0.0, max_value=100.0,
                                    value=10.0) / 100
-    loan_amount_x2 = st.number_input("Brain Capital Loan Amount Cap:", min_value=0.0, max_value=2 * principal_val,
+    loan_amount_x2 = st.number_input("Brain Capital Loan Amount Cap:", min_value=0.0, max_value=1000000.0,
                                      value=2 * principal_val)
     total_repayment, yearly_payments, monthly_payments = calculate_brain_capital(initial_income, annual_increase,
                                                                                  interest_on_income, loan_amount_x2)
