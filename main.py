@@ -9,11 +9,11 @@ import pandas as pd
 instructions = """
 ## Loan Comparison Tool - Prodigy Finance vs Brain Capital
 
-Welcome to the Loan Comparison Tool! Please note that this tool is designed for fun and educational purposes only (Also i am in the process of picking one of the 2 for my INSEAD MBA!). It may contain bugs and hasn't been extensively tested. Always consult with financial advisors or loan providers for accurate and personalized loan information.
-
+Welcome to the Loan Comparison Tool! Please note that this tool is designed for fun and educational purposes only (Also i am in the process of picking one of the 2 for my INSEAD MBA!). It likely contain bugs and hasn't been stress tested. Always consult with financial advisors or loan providers for accurate and personalized loan information.
+For the prodigy loan I have used formulas for amortisation found online, additionally i have added the simple interest accrued during grace period + the admin fees. The results have a discrepancy of a few dollars from the values shown on Prodigy.
 ### Instructions:
 
-1. Enter the APR (Annual Percentage Rate) and loan amount quoted by Prodigy Finance. The loan amount you enter will be assumed for the Brain Capital comparison.
+1. Enter the variable interest (not APR) and loan amount quoted by Prodigy Finance. The loan amount you enter will be assumed for the Brain Capital comparison.
 
 2. Brain Capital loans are capped at 2 times the loan amount. Enter your expected initial income and how much you expect it to increase over the years.
 
@@ -48,18 +48,35 @@ def calculate_prodigy(apr_val, principal_val, duration_val):
 
     try:
         principal_with_fee = principal_val * 1.05  # Including 5% admin fee
-        monthly_interest_rate = apr_val / 100 / 12
-        total_payments = duration_val * 12
 
-        numerator = monthly_interest_rate * principal_with_fee
-        denominator = 1 - (1 + monthly_interest_rate) ** (-total_payments)
-        monthly_payment = numerator / denominator
+        total_payments = duration_val * 12  #Total payments in months
+        days_in_year = 365
+
+        # Calculate simple interest during study and grace period
+        days_study_grace = 18*30  # Assuming 18 months grace period
+        interest_study_grace = principal_with_fee * ((apr_val/100) / days_in_year) * days_study_grace
+        new_loan_amount=interest_study_grace+principal_with_fee
+
+        monthly_interest_rate = apr_val / (12*100)
+
+        monthly_payment = (new_loan_amount * monthly_interest_rate * (1+monthly_interest_rate)**(total_payments))/(((1+monthly_interest_rate)**total_payments)-1)
+
+
+
+
+
         total_paid = monthly_payment * total_payments
+
+
+
+
+
 
         return monthly_payment, total_paid
     except Exception as e:
         st.error(f"An error occurred: {e}")
         return None, None
+
 
 def calculate_brain_capital(initial_income, annual_increase, interest_on_income, loan_amount_x2):
     try:
@@ -103,9 +120,9 @@ col1, col2 = st.columns([1, 1])
 with col1:
 
     st.header("Prodigy Finance Inputs")
-    apr_val = st.slider("Enter APR (%):", min_value=0.0, max_value=100.0, value=10.0)
+    apr_val = st.number_input("Enter Variable Interest rate (Fixed + base rate)  (%):", min_value=0.0, max_value=100.0, value=10.0)
     principal_val = st.number_input("Enter Loan value ($)", min_value=0.0, max_value=500000.0, value=100000.0)
-    st.markdown('**Note:** This loan amount will be assumed for brain capital as well for fair comparison. Brain capital will only use this loan amount to set a max cap')
+    st.markdown('**Note:** Prodigy %% admin fee is included, no need to add seperately. By default ths loan amount will be assumed for brain capital as well for fair comparison. There is an option to change this later.')
     duration_val = st.slider("Duration in Years", min_value=1, max_value=30, value=10)
 
     # Calculating and showing results
@@ -122,7 +139,7 @@ with col1:
     st.markdown('**Note:** This slider represents your estimated yearly salary increase percentage. '
                 'Adjust it based on your own career expectations. Remember, salary progression may not be linear and can vary based on industry, '
                 'role, and economic conditions.')
-    interest_on_income = st.slider("Enter interest on income percentage", min_value=0.0, max_value=100.0,
+    interest_on_income = st.number_input("Enter interest on income percentage", min_value=0.0, max_value=100.0,
                                    value=10.0) / 100
     loan_amount_x2 = st.number_input("Brain Capital Loan Amount Cap:", min_value=0.0, max_value=2 * principal_val,
                                      value=2 * principal_val)
@@ -133,7 +150,7 @@ with col1:
 
 
 # Prodigy cumulative payments
-prodigy_cumulative_payments = [monthly_payment * (i + 1) for i in range(int(duration_val * 12))]
+prodigy_cumulative_payments = [monthly_payment * i for i in range(1, int(duration_val * 12) + 1)]
 
 # Create a DataFrame with the cumulative payments data
 df_prodigy_cumulative = pd.DataFrame({
@@ -146,18 +163,24 @@ df_prodigy_cumulative = pd.DataFrame({
 
 
 
-
-
-
-
 # Brain Capital cumulative payments
-brain_cumulative_payments = [12*sum(monthly_payments[:i]) for i in range(len(monthly_payments))]
+# Brain Capital cumulative payments
+monthly_cumulative_payments = []
+cumulative_payment = 0
+
+for monthly_payment in monthly_payments:
+    for _ in range(12):
+        cumulative_payment += monthly_payment
+        monthly_cumulative_payments.append(cumulative_payment)
 
 # Create a DataFrame with the cumulative payments data
 df_brain_cumulative = pd.DataFrame({
-    'Month': [i*12 for i in range(0, len(brain_cumulative_payments))],  # Multiplying by 12 to convert years into months
-    'Cumulative Payments': brain_cumulative_payments
+    'Month': list(range(1, len(monthly_cumulative_payments) + 1)),  # Start from month 1
+    'Cumulative Payments': monthly_cumulative_payments
 })
+
+
+
 
 # Create interactive line chart
 
